@@ -1,6 +1,20 @@
 buildscript {
     repositories {
         mavenCentral()
+        maven {
+            name 'minecraftplus'
+            url 'https://maven.minecraftplus.org/releases'
+            mavenContent {
+                releasesOnly()
+            }
+        }
+        maven {
+            name 'minecraftplus-snapshots'
+            url 'https://maven.minecraftplus.org/snapshots/'
+            mavenContent {
+                snapshotsOnly()
+            }
+        }
         maven { url = 'https://maven.minecraftforge.net/' }
     }
     dependencies {
@@ -17,7 +31,7 @@ plugins {
 }
 apply plugin: 'net.minecraftforge.gradleutils'
 
-group 'net.minecraftforge'
+group 'org.minecraftplus'
 version = gradleutils.getTagOffsetBranchVersion(null, 'master', 'HEAD')
 println('Version: ' + version)
 
@@ -26,12 +40,12 @@ compileJava.options.encoding = 'UTF-8'
 
 ext {
     CHANGELOG = rootProject.file('build/changelog.txt')
-    REPO = 'ForgeAutoRenamingTool'
-    TITLE = 'Forge Auto Renaming Tool'
+    REPO = 'FARTPlus'
+    TITLE = 'Forge Auto Renaming Tool Plus'
     MANIFEST = manifest{
         attributes('Main-Class': 'net.minecraftforge.fart.Main')
         attributes([
-            'Specification-Title':      'ForgeAutoRenamingTool',
+            'Specification-Title':      'FARTPlus',
             'Specification-Vendor':     'Forge Development LLC',
             'Specification-Version':    gradleutils.gitInfo.tag,
             'Implementation-Title':     'SimpleInstaller',
@@ -44,6 +58,20 @@ ext {
 
 repositories {
     mavenCentral()
+    maven {
+        name 'minecraftplus'
+        url 'https://maven.minecraftplus.org/releases'
+        mavenContent {
+            releasesOnly()
+        }
+    }
+    maven {
+        name 'minecraftplus-snapshots'
+        url 'https://maven.minecraftplus.org/snapshots/'
+        mavenContent {
+            snapshotsOnly()
+        }
+    }
     maven { url = 'https://maven.minecraftforge.net/' }
 }
 
@@ -78,6 +106,8 @@ test {
   }
 }
 
+archivesBaseName = project.name.toLowerCase()
+
 java.withSourcesJar()
 
 shadowJar {
@@ -100,19 +130,20 @@ assemble.dependsOn shadowJar
 publishing {
     publications {
         mavenJava(MavenPublication) {
+            artifactId = project.archivesBaseName
             from components.java
             pom {
                 name = TITLE
                 description = 'A tool that renames java bytecode elements.'
-                url = "https://github.com/MinecraftForge/${REPO}"
+                url = "https://github.com/MinecraftPlus/${REPO}"
                 scm {
-                    url = "https://github.com/MinecraftForge/${REPO}"
-                    connection = "scm:git:git://github.com/MinecraftForge/${REPO}.git"
-                    developerConnection = "scm:git:git@github.com:MinecraftForge/${REPO}.git"
+                    url = "https://github.com/MinecraftPlus/${REPO}"
+                    connection = "scm:git:git://github.com/MinecraftPlus/${REPO}.git"
+                    developerConnection = "scm:git:git@github.com:MinecraftPlus/${REPO}.git"
                 }
                 issueManagement {
                     system = 'github'
-                    url = "https://github.com/MinecraftForge/${REPO}/issues"
+                    url = "https://github.com/MinecraftPlus/${REPO}/issues"
                 }
 
                 licenses {
@@ -127,12 +158,32 @@ publishing {
                         id = 'LexManos'
                         name = 'LexManos'
                     }
+                    developer {
+                        id = 'theWituch'
+                        name = 'theWituch'
+                    }
                 }
             }
         }
     }
     repositories {
-        maven gradleutils.getPublishingForgeMaven()
+        maven {
+            name = "minecraftplus"
+            url = "https://maven.minecraftplus.org"
+            allowInsecureProtocol = false
+
+            if (project.version.toString().endsWith("-SNAPSHOT")) {
+                url = url.toString().concat("/snapshots")
+            } else {
+                url = url.toString().concat("/releases")
+            }
+
+            // To know how use credentials see https://docs.gradle.org/current/samples/sample_publishing_credentials.html
+            credentials(PasswordCredentials)
+            authentication {
+                basic(BasicAuthentication)
+            }
+        }
     }
 }
 

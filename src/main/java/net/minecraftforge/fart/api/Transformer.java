@@ -22,8 +22,10 @@ package net.minecraftforge.fart.api;
 import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Set;
 import java.util.function.Consumer;
 
+import net.minecraftforge.fart.internal.DeducingTransformer;
 import net.minecraftforge.fart.internal.FFLineFixer;
 import net.minecraftforge.fart.internal.IdentifierFixer;
 import net.minecraftforge.fart.internal.ParameterAnnotationFixer;
@@ -33,6 +35,7 @@ import net.minecraftforge.fart.internal.RenamingTransformer;
 import net.minecraftforge.fart.internal.SignatureStripperTransformer;
 import net.minecraftforge.fart.internal.SourceFixer;
 import net.minecraftforge.srgutils.IMappingFile;
+import org.minecraftplus.srgprocessor.Dictionary;
 
 import static java.util.Objects.requireNonNull;
 
@@ -61,6 +64,20 @@ public interface Transformer {
     @Deprecated
     public static Transformer createRenamer(Inheritance inh, IMappingFile map) {
         return new RenamingTransformer(inh, map, System.out::println);
+    }
+
+    /**
+     * Create a transformer that deduce names as a transformation.
+     *
+     * @param map the mapping information to remap with
+     * @return a factory for a renaming transformer
+     */
+//    public static Factory deducerFactory(Set<Dictionary> dictionaries, IMappingFile map) {
+//        return ctx -> new DeducingTransformer(ctx.getInheritance(), dictionaries, map, ctx.getLog());
+//    }
+
+    public static Factory deducerFactory(Set<Dictionary> dictionaries) {
+        return ctx -> new DeducingTransformer(ctx.getInheritance(), dictionaries, null, ctx.getLog());
     }
 
     /**

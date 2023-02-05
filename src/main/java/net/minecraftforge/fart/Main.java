@@ -20,14 +20,19 @@
 package net.minecraftforge.fart;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import joptsimple.OptionException;
@@ -40,6 +45,9 @@ import net.minecraftforge.fart.api.SignatureStripperConfig;
 import net.minecraftforge.fart.api.SourceFixerConfig;
 import net.minecraftforge.fart.api.Transformer;
 import net.minecraftforge.srgutils.IMappingFile;
+import org.minecraftplus.srgprocessor.Dictionary;
+
+import static java.util.Arrays.asList;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -57,6 +65,8 @@ public class Main {
         OptionSpec<Integer> threadsO = parser.accepts("threads", "Number of threads to use, defaults to processor count.").withRequiredArg().ofType(Integer.class).defaultsTo(Runtime.getRuntime().availableProcessors());
         OptionSpec<File> ffLinesO = parser.accepts("ff-line-numbers", "Applies line number corrections from Fernflower.").withRequiredArg().ofType(File.class);
         OptionSpec<Void> reverseO = parser.accepts("reverse", "Reverse provided mapping file before applying");
+        OptionSpec<Void> deduceO = parser.acceptsAll(asList("deduce-param-names", "dp"), "Deduce parameter names from parameter signature");
+        OptionSpec<File> dictionaryO = parser.acceptsAll(asList("dictionary", "d"), "Dictionary to be used in parameter names deducing").withRequiredArg().ofType(File.class);
         OptionSet options;
         try {
             options = parser.parse(expandArgs(args));
@@ -123,6 +133,23 @@ public class Main {
             builder.add(Transformer.renamerFactory(mappings));
         } else {
             log.accept("Names: null");
+        }
+
+        if (options.has(deduceO)) {
+            Set<Dictionary> dictionaries = new HashSet<>();
+            for (File dict : options.valuesOf(dictionaryO)) {
+                try {
+                    log.accept("Dictionary: " + dict);
+                    dictionaries.add(new Dictionary().load(Files.newInputStream(dict.toPath())));
+                } catch (IOException ex) {
+                    throw new RuntimeException("Failed to read dictionary!", ex);
+                }
+            }
+
+            log.accept("Deduce names: true");
+            builder.add(Transformer.deducerFactory(dictionaries));
+        } else {
+            log.accept("Deduce names: false");
         }
 
         if (options.has(fixAnnO)) {

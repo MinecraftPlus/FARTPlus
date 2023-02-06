@@ -27,12 +27,19 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.commons.ClassRemapper;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 public class DeducingTransformer implements Transformer {
+    private static final String ABSTRACT_FILE = "fernflower_abstract_parameter_names.txt";
     private final DeducingParameterRemapper remapper;
+    private final Set<String> abstractParams = ConcurrentHashMap.newKeySet();
 
     public DeducingTransformer(Inheritance inh, Set<Dictionary> dictionaries, IMappingFile map, Consumer<String> log) {
         this.remapper = new DeducingParameterRemapper(inh, dictionaries, log);
@@ -52,5 +59,17 @@ public class DeducingTransformer implements Transformer {
         if (entry.isMultiRelease())
             return ClassEntry.create(newName, entry.getTime(), data, entry.getVersion());
         return ClassEntry.create(newName + ".class", entry.getTime(), data);
+    }
+
+    @Override
+    public Collection<? extends Entry> getExtras() {
+        if (abstractParams.isEmpty())
+            return Collections.emptyList();
+        byte[] data = abstractParams.stream().sorted().collect(Collectors.joining("\n")).getBytes(StandardCharsets.UTF_8);
+        return Arrays.asList(ResourceEntry.create(ABSTRACT_FILE, Entry.STABLE_TIMESTAMP, data));
+    }
+
+    void storeNames(String className, String methodName, String methodDescriptor, Collection<String> paramNames) {
+        abstractParams.add(className + ' ' + methodName + ' ' + methodDescriptor + ' ' + paramNames.stream().collect(Collectors.joining(" ")));
     }
 }

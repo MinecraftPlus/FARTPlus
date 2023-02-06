@@ -26,9 +26,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
@@ -121,7 +124,15 @@ class RenamerImpl implements Renamer {
             List<Entry> newEntries = async.invokeAll(oldEntries, Entry::getName, this::processEntry);
 
             logger.accept("Adding extras");
-            transformers.stream().forEach(t -> newEntries.addAll(t.getExtras()));
+            Map<String, Entry> extras = transformers.stream().flatMap(t -> {
+                logger.accept(" from " + t.getClass().getSimpleName());
+                return t.getExtras().stream();
+            }).collect(Collectors.toMap(Entry::getName, e -> e, (oldEntry, newEntry) -> {
+                logger.accept("   overriding " + oldEntry.getName());
+                return newEntry;
+            }));
+
+            newEntries.addAll(extras.values());
 
             Set<String> seen = new HashSet<>();
             String dupes = newEntries.stream().map(Entry::getName)

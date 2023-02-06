@@ -23,10 +23,13 @@ import org.minecraftplus.srgprocessor.Utils;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.ClassRemapper;
 import org.objectweb.asm.commons.MethodRemapper;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 class DeducingClassRemapper extends ClassRemapper {
@@ -49,6 +52,9 @@ class DeducingClassRemapper extends ClassRemapper {
         MethodVisitor methodVisitor = cv.visitMethod(methodAccess, remapper.mapMethodName(className, methodName, methodDescriptor), remapper.mapMethodDesc(methodDescriptor), remapper.mapSignature(methodSignature, false), methodExceptions == null ? null : remapper.mapTypes(methodExceptions));
         if (methodVisitor == null)
             return null;
+
+        if ((methodAccess & (Opcodes.ACC_ABSTRACT | Opcodes.ACC_NATIVE)) != 0)
+            renameAbstract(methodAccess, methodName, methodDescriptor);
 
         return new MethodRemapper(methodVisitor, remapper) {
             boolean isRecordConstructor = false;
@@ -109,5 +115,33 @@ class DeducingClassRemapper extends ClassRemapper {
                 return ret;
             }
         };
+    }
+
+    private void renameAbstract(int access, String methodName, String methodDescriptor) {
+        Type[] types = Type.getArgumentTypes(methodDescriptor);
+        if (types.length == 0)
+            return;
+
+        Set<String> names = new LinkedHashSet<>();
+        int i = (access & Opcodes.ACC_STATIC) == 0 ? 1 : 0;
+        for (Type type : types) {
+            String name = remapper.deduceParameterName(className, methodName, methodDescriptor, i, "var" + i, type.getDescriptor());
+
+            int counter = 1;
+            String ret = name;
+            while (!names.add(ret)) {
+                ret = name + counter;
+                counter++;
+            }
+
+            i += type.getSize();
+        }
+
+        transformer.storeNames(
+                remapper.mapType(className),
+                remapper.mapMethodName(className, methodName, methodDescriptor),
+                remapper.mapMethodDesc(methodDescriptor),
+                names
+        );
     }
 }
